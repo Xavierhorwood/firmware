@@ -327,6 +327,12 @@ static void WiFiEvent(WiFiEvent_t event)
         break;
     case ARDUINO_EVENT_WIFI_STA_CONNECTED:
         LOG_INFO("Connected to access point");
+        if (!WiFi.enableIpV6())
+        {
+            LOG_ERROR("Failed to enable Ipv6");
+        }
+        else
+            LOG_INFO("Getting Ipv6 address");
         break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
         LOG_INFO("Disconnected from WiFi access point");
@@ -350,6 +356,7 @@ static void WiFiEvent(WiFiEvent_t event)
         LOG_INFO("Obtained GlobalIP6 address: %s", WiFi.globalIPv6().toString().c_str());
 #else
         LOG_INFO("Obtained IP6 address: %s", WiFi.localIPv6().toString().c_str());
+        LOG_INFO("Obtained GlobalIP6 address: %s", WiFi.softAPIPv6().toString().c_str());
 #endif
         break;
     case ARDUINO_EVENT_WIFI_STA_LOST_IP:
