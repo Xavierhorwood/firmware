@@ -168,6 +168,7 @@ static int32_t reconnectWiFi()
             WiFi.useStaticBuffers(true);
             WiFi.mode(WIFI_STA);
 #endif
+            WiFi.enableIpV6();
             WiFi.begin(wifiName, wifiPsw);
         }
         isReconnecting = false;
@@ -368,15 +369,6 @@ static void WiFiEvent(WiFiEvent_t event)
         LOG_INFO("Obtained GlobalIP6 address: %s", WiFi.globalIPv6().toString().c_str());
 #else
         LOG_INFO("Obtained IP6 address: %s", WiFi.localIPv6().toString().c_str());
-        ip6_addr_t addr = {0};
-        esp_err_t errip6 = tcpip_adapter_get_ip6_global(tcpip_adapter_if_from_esp_netif(get_esp_interface_netif(ESP_IF_WIFI_STA)), &addr);
-
-        if (errip6 != ESP_OK) {
-            LOG_ERROR("Failed to get IPv6 global address");
-        }
-        else {
-            print_ipv6(&addr);
-        }
 #endif
         break;
     }
