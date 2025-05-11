@@ -306,6 +306,18 @@ bool initWifi()
 }
 
 #ifdef ARCH_ESP32
+
+esp_netif_t *get_esp_interface_netif(esp_interface_t interface);
+
+void print_ipv6(const ip6_addr_t *ip6_addr) {
+    char str[40]; // IPv6 max string length is 39 characters + null terminator
+    if (ip6addr_ntoa_r(ip6_addr, str, sizeof(str)) != NULL) {
+        LOG_INFO("IPv6 address: %s", str);
+    } else {
+        LOG_ERROR("Failed to convert IPv6 address to string.");
+    }
+}
+
 // Called by the Espressif SDK to
 static void WiFiEvent(WiFiEvent_t event)
 {
@@ -350,15 +362,24 @@ static void WiFiEvent(WiFiEvent_t event)
         LOG_INFO("Obtained IP address: %s", WiFi.localIP().toString().c_str());
         onNetworkConnected();
         break;
-    case ARDUINO_EVENT_WIFI_STA_GOT_IP6:
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP6: {
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
         LOG_INFO("Obtained Local IP6 address: %s", WiFi.linkLocalIPv6().toString().c_str());
         LOG_INFO("Obtained GlobalIP6 address: %s", WiFi.globalIPv6().toString().c_str());
 #else
         LOG_INFO("Obtained IP6 address: %s", WiFi.localIPv6().toString().c_str());
-        LOG_INFO("Obtained GlobalIP6 address: %s", WiFi.softAPIPv6().toString().c_str());
+        ip6_addr_t addr = {0};
+        esp_err_t errip6 = tcpip_adapter_get_ip6_global(tcpip_adapter_if_from_esp_netif(get_esp_interface_netif(ESP_IF_WIFI_STA)), &addr);
+
+        if (errip6 != ESP_OK) {
+            LOG_ERROR("Failed to get IPv6 global address");
+        }
+        else {
+            print_ipv6(&addr);
+        }
 #endif
         break;
+    }
     case ARDUINO_EVENT_WIFI_STA_LOST_IP:
         LOG_INFO("Lost IP address and IP address is reset to 0");
         if (!isReconnecting) {
