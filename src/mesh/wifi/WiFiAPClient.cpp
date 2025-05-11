@@ -168,7 +168,6 @@ static int32_t reconnectWiFi()
             WiFi.useStaticBuffers(true);
             WiFi.mode(WIFI_STA);
 #endif
-            WiFi.enableIpV6();
             WiFi.begin(wifiName, wifiPsw);
         }
         isReconnecting = false;
@@ -340,7 +339,7 @@ static void WiFiEvent(WiFiEvent_t event)
         break;
     case ARDUINO_EVENT_WIFI_STA_CONNECTED:
         LOG_INFO("Connected to access point");
-        if (!WiFi.enableIpV6())
+        if (!WiFi.enableIPv6())
         {
             LOG_ERROR("Failed to enable Ipv6");
         }
