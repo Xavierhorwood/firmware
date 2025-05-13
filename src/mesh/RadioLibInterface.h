@@ -9,7 +9,7 @@
 
 // ESP32 has special rules about ISR code
 #ifdef ARDUINO_ARCH_ESP32
-#define INTERRUPT_ATTR IRAM_ATTR
+#define INTERRUPT_ATTR ARDUINO_ISR_ATTR
 #else
 #define INTERRUPT_ATTR
 #endif

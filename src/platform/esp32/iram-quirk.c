@@ -5,10 +5,11 @@
 #include <esp_attr.h>
 #include <esp_flash.h>
 #include <spi_flash_chip_driver.h>
+#include <esp32-hal.h>
 
 #define IRAM_SECTION section(".iram1.stub")
 
-IRAM_ATTR esp_err_t stub_probe(esp_flash_t *chip, uint32_t flash_id)
+ARDUINO_ISR_ATTR esp_err_t stub_probe(esp_flash_t *chip, uint32_t flash_id)
 {
     return ESP_ERR_NOT_FOUND;
 }

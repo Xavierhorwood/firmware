@@ -23,7 +23,7 @@ bool NotifiedWorkerThread::notify(uint32_t v, bool overwrite)
 /**
  * Notify this thread so it can run
  */
-IRAM_ATTR bool NotifiedWorkerThread::notifyCommon(uint32_t v, bool overwrite)
+ARDUINO_ISR_ATTR bool NotifiedWorkerThread::notifyCommon(uint32_t v, bool overwrite)
 {
     if (overwrite || notification == 0) {
         enabled = true;
@@ -48,7 +48,7 @@ IRAM_ATTR bool NotifiedWorkerThread::notifyCommon(uint32_t v, bool overwrite)
  *
  * This must be inline or IRAM_ATTR on ESP32
  */
-IRAM_ATTR bool NotifiedWorkerThread::notifyFromISR(BaseType_t *highPriWoken, uint32_t v, bool overwrite)
+ARDUINO_ISR_ATTR bool NotifiedWorkerThread::notifyFromISR(BaseType_t *highPriWoken, uint32_t v, bool overwrite)
 {
     bool r = notifyCommon(v, overwrite);
     if (r)
