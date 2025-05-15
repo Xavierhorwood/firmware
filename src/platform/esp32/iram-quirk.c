@@ -9,7 +9,7 @@
 
 #define IRAM_SECTION section(".iram1.stub")
 
-ARDUINO_ISR_ATTR esp_err_t stub_probe(esp_flash_t *chip, uint32_t flash_id)
+IRAM_ATTR esp_err_t stub_probe(esp_flash_t *chip, uint32_t flash_id)
 {
     return ESP_ERR_NOT_FOUND;
 }

@@ -30,7 +30,7 @@ void BinarySemaphoreFreeRTOS::give()
     xSemaphoreGive(semaphore);
 }
 
-ARDUINO_ISR_ATTR void BinarySemaphoreFreeRTOS::giveFromISR(BaseType_t *pxHigherPriorityTaskWoken)
+IRAM_ATTR void BinarySemaphoreFreeRTOS::giveFromISR(BaseType_t *pxHigherPriorityTaskWoken)
 {
     xSemaphoreGiveFromISR(semaphore, pxHigherPriorityTaskWoken);
 }

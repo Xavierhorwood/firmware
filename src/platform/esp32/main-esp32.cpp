@@ -167,23 +167,18 @@ void esp32Setup()
 // #define APP_WATCHDOG_SECS 45
 #define APP_WATCHDOG_SECS 90
 
-#ifdef CONFIG_IDF_TARGET_ESP32C6
+#if defined(CONFIG_IDF_TARGET_ESP32C6) || ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
     esp_task_wdt_config_t *wdt_config = (esp_task_wdt_config_t *)malloc(sizeof(esp_task_wdt_config_t));
     wdt_config->timeout_ms = APP_WATCHDOG_SECS * 1000;
     wdt_config->trigger_panic = true;
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0) && defined(CONFIG_ESP_TASK_WDT_INIT)
+    res = esp_task_wdt_reconfigure(wdt_config);
+#else
     res = esp_task_wdt_init(wdt_config);
+#endif
     assert(res == ESP_OK);
 #else
-#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-esp_task_wdt_config_t wdt_config = {
-    .timeout_ms = APP_WATCHDOG_SECS * 1000,
-    .trigger_panic = true,
-};
-
-res = esp_task_wdt_init(&wdt_config);
-#else
     res = esp_task_wdt_init(APP_WATCHDOG_SECS, true);
-#endif
     assert(res == ESP_OK);
 #endif
     res = esp_task_wdt_add(NULL);

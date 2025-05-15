@@ -21,7 +21,7 @@ bool BinarySemaphorePosix::take(uint32_t msec)
 
 void BinarySemaphorePosix::give() {}
 
-ARDUINO_ISR_ATTR void BinarySemaphorePosix::giveFromISR(BaseType_t *pxHigherPriorityTaskWoken) {}
+IRAM_ATTR void BinarySemaphorePosix::giveFromISR(BaseType_t *pxHigherPriorityTaskWoken) {}
 
 } // namespace concurrency
 
