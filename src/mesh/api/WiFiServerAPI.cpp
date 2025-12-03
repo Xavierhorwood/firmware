@@ -3,23 +3,45 @@
 
 #if HAS_WIFI
 #include "WiFiServerAPI.h"
+#include "NodeDB.h"
 
-static WiFiServerPort *apiPort;
+// Use void* to allow polymorphic storage of either WiFiServerPort or WiFiServerPortDual
+static void *apiPort = nullptr;
+static bool usingDualStack = false;
 
 void initApiServer(int port)
 {
-    // Start API server on port 4403
-    if (!apiPort) {
-        apiPort = new WiFiServerPort(port);
-        LOG_INFO("API server listen on TCP port %d", port);
-        apiPort->init();
+    if (apiPort) {
+        LOG_WARN("API server already initialized");
+        return;
+    }
+
+    // Use dual-stack server when IPv6 is enabled, otherwise use IPv4-only
+    if (config.network.ipv6_enabled) {
+        LOG_INFO("Starting dual-stack (IPv4+IPv6) API server on port %d", port);
+        auto *dualPort = new WiFiServerPortDual(port);
+        dualPort->init();
+        apiPort = dualPort;
+        usingDualStack = true;
+    } else {
+        LOG_INFO("Starting IPv4-only API server on port %d", port);
+        auto *v4Port = new WiFiServerPort(port);
+        v4Port->init();
+        apiPort = v4Port;
+        usingDualStack = false;
     }
 }
+
 void deInitApiServer()
 {
     if (apiPort) {
-        delete apiPort;
+        if (usingDualStack) {
+            delete static_cast<WiFiServerPortDual *>(apiPort);
+        } else {
+            delete static_cast<WiFiServerPort *>(apiPort);
+        }
         apiPort = nullptr;
+        usingDualStack = false;
     }
 }
 
@@ -30,4 +52,7 @@ WiFiServerAPI::WiFiServerAPI(WiFiClient &_client) : ServerAPI(_client)
 }
 
 WiFiServerPort::WiFiServerPort(int port) : APIServerPort(port) {}
+
+WiFiServerPortDual::WiFiServerPortDual(int port) : APIServerPort(port) {}
+
 #endif

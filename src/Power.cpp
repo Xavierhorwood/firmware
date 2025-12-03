@@ -51,7 +51,11 @@
 #if defined(BATTERY_PIN) && defined(ARCH_ESP32)
 
 #ifndef BAT_MEASURE_ADC_UNIT // ADC1 is default
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+static const adc_channel_t adc_channel = (adc_channel_t)ADC_CHANNEL;
+#else
 static const adc1_channel_t adc_channel = ADC_CHANNEL;
+#endif
 static const adc_unit_t unit = ADC_UNIT_1;
 #else // ADC2
 static const adc2_channel_t adc_channel = ADC_CHANNEL;
@@ -60,7 +64,15 @@ RTC_NOINIT_ATTR uint64_t RTC_reg_b;
 
 #endif // BAT_MEASURE_ADC_UNIT
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+// ESP-IDF 5.x - New ADC oneshot API
+static adc_oneshot_unit_handle_t adc_handle = NULL;
+static adc_cali_handle_t adc_cali_handle = NULL;
+#else
+// ESP-IDF 4.x - Legacy ADC API
 esp_adc_cal_characteristics_t *adc_characs = (esp_adc_cal_characteristics_t *)calloc(1, sizeof(esp_adc_cal_characteristics_t));
+#endif
+
 #ifndef ADC_ATTENUATION
 static const adc_atten_t atten = ADC_ATTEN_DB_12;
 #else
@@ -328,7 +340,20 @@ class AnalogBatteryLevel : public HasBatteryLevel
             battery_adcEnable();
 #ifdef ARCH_ESP32 // ADC block for espressif platforms
             raw = espAdcRead();
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+            // ESP-IDF 5.x - New calibration API
+            int voltage_mv = 0;
+            if (adc_cali_handle != NULL) {
+                adc_cali_raw_to_voltage(adc_cali_handle, raw, &voltage_mv);
+                scaled = voltage_mv;
+            } else {
+                // Fallback if calibration failed - use raw value
+                scaled = raw;
+            }
+#else
+            // ESP-IDF 4.x - Legacy calibration API
             scaled = esp_adc_cal_raw_to_voltage(raw, adc_characs);
+#endif
             scaled *= operativeAdcMultiplier;
 #else // block for all other platforms
             for (uint32_t i = 0; i < BATTERY_SENSE_SAMPLES; i++) {
@@ -367,6 +392,18 @@ class AnalogBatteryLevel : public HasBatteryLevel
         uint32_t raw = 0;
         uint8_t raw_c = 0; // raw reading counter
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+        // ESP-IDF 5.x - New ADC oneshot API
+        for (int i = 0; i < BATTERY_SENSE_SAMPLES; i++) {
+            int val_ = 0;
+            esp_err_t result = adc_oneshot_read(adc_handle, adc_channel, &val_);
+            if (result == ESP_OK && val_ >= 0) {
+                raw += val_;
+                raw_c++;
+            }
+        }
+#else
+        // ESP-IDF 4.x - Legacy ADC API
 #ifndef BAT_MEASURE_ADC_UNIT // ADC1
         for (int i = 0; i < BATTERY_SENSE_SAMPLES; i++) {
             int val_ = adc1_get_raw(adc_channel);
@@ -412,6 +449,7 @@ class AnalogBatteryLevel : public HasBatteryLevel
 #endif // BAT_MEASURE_ADC_UNIT
 
 #endif // End BAT_MEASURE_ADC_UNIT
+#endif // ESP_IDF_VERSION
         return (raw / (raw_c < 1 ? 1 : raw_c));
     }
 #endif
@@ -625,10 +663,67 @@ bool Power::analogInit()
 #ifdef ARCH_ESP32 // ESP32 needs special analog stuff
 
 #ifndef ADC_WIDTH // max resolution by default
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    static const adc_bitwidth_t width = ADC_BITWIDTH_12;
+#else
     static const adc_bits_width_t width = ADC_WIDTH_BIT_12;
+#endif
 #else
     static const adc_bits_width_t width = ADC_WIDTH;
 #endif
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    // ESP-IDF 5.x - New ADC oneshot API
+    adc_oneshot_unit_init_cfg_t init_config = {
+        .unit_id = unit,
+        .ulp_mode = ADC_ULP_MODE_DISABLE,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &adc_handle));
+
+    adc_oneshot_chan_cfg_t config = {
+        .atten = atten,
+        .bitwidth = (adc_bitwidth_t)width,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, adc_channel, &config));
+
+    // Setup calibration - use feature detection macros for portability across ESP-IDF versions
+    bool calibrated = false;
+#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+    if (!calibrated) {
+        adc_cali_curve_fitting_config_t cali_config = {
+            .unit_id = unit,
+            .atten = atten,
+            .bitwidth = (adc_bitwidth_t)width,
+        };
+        esp_err_t ret = adc_cali_create_scheme_curve_fitting(&cali_config, &adc_cali_handle);
+        if (ret == ESP_OK) {
+            LOG_INFO("ADC calibration curve fitting initialized");
+            calibrated = true;
+        }
+    }
+#endif
+
+#if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+    if (!calibrated) {
+        adc_cali_line_fitting_config_t cali_config = {
+            .unit_id = unit,
+            .atten = atten,
+            .bitwidth = (adc_bitwidth_t)width,
+        };
+        esp_err_t ret = adc_cali_create_scheme_line_fitting(&cali_config, &adc_cali_handle);
+        if (ret == ESP_OK) {
+            LOG_INFO("ADC calibration line fitting initialized");
+            calibrated = true;
+        }
+    }
+#endif
+
+    if (!calibrated) {
+        LOG_WARN("ADC calibration failed, measurements will be uncalibrated");
+    }
+
+#else
+    // ESP-IDF 4.x - Legacy ADC API
 #ifndef BAT_MEASURE_ADC_UNIT // ADC1
     adc1_config_width(width);
     adc1_config_channel_atten(adc_channel, atten);
@@ -657,6 +752,7 @@ bool Power::analogInit()
     else {
         LOG_INFO("ADC config based on default reference voltage");
     }
+#endif // ESP_IDF_VERSION
 #endif // ARCH_ESP32
 
 #ifdef ARCH_NRF52

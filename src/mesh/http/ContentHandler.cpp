@@ -48,7 +48,11 @@ using namespace httpsserver;
 #include "mesh/http/ContentHandler.h"
 
 #include <HTTPClient.h>
+#if __has_include(<NetworkClientSecure.h>)
+#include <NetworkClientSecure.h>
+#else
 #include <WiFiClientSecure.h>
+#endif
 HTTPClient httpClient;
 
 #define DEST_FS_USES_LITTLEFS

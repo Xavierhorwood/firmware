@@ -4,8 +4,14 @@
 #include "configuration.h"
 
 #ifdef ARCH_ESP32
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include <esp_adc/adc_oneshot.h>
+#include <esp_adc/adc_cali.h>
+#include <esp_adc/adc_cali_scheme.h>
+#else
 // "legacy adc calibration driver is deprecated, please migrate to use esp_adc/adc_cali.h and esp_adc/adc_cali_scheme.h
 #include <esp_adc_cal.h>
+#endif
 #include <soc/adc_channel.h>
 #endif
 

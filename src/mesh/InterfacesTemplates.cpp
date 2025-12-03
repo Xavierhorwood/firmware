@@ -35,4 +35,5 @@ template class APIServerPort<ethServerAPI, EthernetServer>;
 #include "api/WiFiServerAPI.h"
 template class ServerAPI<WiFiClient>;
 template class APIServerPort<WiFiServerAPI, WiFiServer>;
+template class APIServerPort<WiFiServerAPI, LwipDualStackServer>;
 #endif
